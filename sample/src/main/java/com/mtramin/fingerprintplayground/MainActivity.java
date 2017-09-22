@@ -40,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText input;
     private ViewGroup layout;
     private int key;
+    private String encrypted;
 
     private Disposable fingerprintDisposable = Disposables.empty();
 
@@ -52,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
 
         findViewById(R.id.authenticate).setOnClickListener(v -> authenticate());
         findViewById(R.id.encrypt).setOnClickListener(v -> encrypt());
+        findViewById(R.id.dencrypt).setOnClickListener(v -> decrypt("0", encrypted));
 
         input = (EditText) findViewById(R.id.input);
         layout = (ViewGroup) findViewById(R.id.layout);
@@ -127,10 +129,10 @@ public class MainActivity extends AppCompatActivity {
                             setStatusText(fingerprintEncryptionResult.getMessage());
                             break;
                         case AUTHENTICATED:
-                            String encrypted = fingerprintEncryptionResult.getEncrypted();
-                            setStatusText("encryption successful");
-                            createDecryptionButton(encrypted);
-                            key++;
+                            encrypted = fingerprintEncryptionResult.getEncrypted();
+//                            setStatusText("encryption successful");
+//                            createDecryptionButton(encrypted);
+//                            key++;
                             break;
                     }
                 }, throwable -> {
@@ -178,14 +180,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void createDecryptionButton(final String encrypted) {
-        Button button = new Button(this);
-        button.setText(String.format("decrypt %d", key));
-        button.setTag(new EncryptedData(key, encrypted));
-        button.setOnClickListener(v -> {
-            EncryptedData encryptedData = (EncryptedData) v.getTag();
-            decrypt(encryptedData.key, encryptedData.encrypted);
-        });
-        layout.addView(button);
+
+//        EncryptedData encryptedData = (EncryptedData) v.getTag();
+        decrypt("0", encrypted);
+
+//
+//        Button button = new Button(this);
+//        button.setText(String.format("decrypt %d", key));
+//        button.setTag(new EncryptedData(key, encrypted));
+//        button.setOnClickListener(v -> {
+//            EncryptedData encryptedData = (EncryptedData) v.getTag();
+//            decrypt(encryptedData.key, encryptedData.encrypted);
+//        });
+//        layout.addView(button);
     }
 
     private static class EncryptedData {

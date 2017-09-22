@@ -57,6 +57,13 @@
         android:layout_height="wrap_content"
         android:text="Encrypt"/>
 
+
+    <Button
+        android:id="@+id/dencrypt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="dencrypt"/>
+
     <Space
         android:layout_width="match_parent"
         android:layout_height="@dimen/activity_vertical_margin" />

@@ -17,6 +17,7 @@
 package com.mtramin.rxfingerprint;
 
 import android.content.Context;
+import android.os.AsyncTask;
 import android.support.annotation.VisibleForTesting;
 
 import com.mtramin.rxfingerprint.data.FingerprintEncryptionResult;
@@ -31,61 +32,75 @@ import io.reactivex.ObservableOnSubscribe;
 
 class RsaEncryptionObservable implements ObservableOnSubscribe<FingerprintEncryptionResult> {
 
-	private final FingerprintApiWrapper fingerprintApiWrapper;
-	private final RsaCipherProvider cipherProvider;
-	private final String toEncrypt;
-	private final EncodingProvider encodingProvider;
+    private final FingerprintApiWrapper fingerprintApiWrapper;
+    private final RsaCipherProvider cipherProvider;
+    private final String toEncrypt;
+    private final EncodingProvider encodingProvider;
 
-	/**
-	 * Creates a new AesEncryptionObservable that will listen to fingerprint authentication
-	 * to encrypt the given data.
-	 *
-	 * @param context   context to use
-	 * @param keyName   name of the key in the keystore
-	 * @param toEncrypt data to encrypt  @return Observable {@link FingerprintEncryptionResult}
-	 */
-	static Observable<FingerprintEncryptionResult> create(Context context, String keyName, String toEncrypt) {
-		if (toEncrypt == null) {
-			return Observable.error(new IllegalArgumentException("String to be encrypted is null. Can only encrypt valid strings"));
-		}
-		try {
-			return Observable.create(new RsaEncryptionObservable(new FingerprintApiWrapper(context),
-					new RsaCipherProvider(context, keyName),
-					toEncrypt,
-					new Base64Provider()));
-		} catch (Exception e) {
-			return Observable.error(e);
-		}
-	}
+    /**
+     * Creates a new AesEncryptionObservable that will listen to fingerprint authentication
+     * to encrypt the given data.
+     *
+     * @param context   context to use
+     * @param keyName   name of the key in the keystore
+     * @param toEncrypt data to encrypt  @return Observable {@link FingerprintEncryptionResult}
+     */
+    static Observable<FingerprintEncryptionResult> create(Context context, String keyName, String toEncrypt) {
+        if (toEncrypt == null) {
+            return Observable.error(new IllegalArgumentException("String to be encrypted is null. Can only encrypt valid strings"));
+        }
+        try {
+            return Observable.create(new RsaEncryptionObservable(new FingerprintApiWrapper(context),
+                    new RsaCipherProvider(context, keyName),
+                    toEncrypt,
+                    new Base64Provider()));
+        } catch (Exception e) {
+            return Observable.error(e);
+        }
+    }
 
-	@VisibleForTesting
-	RsaEncryptionObservable(FingerprintApiWrapper fingerprintApiWrapper,
-							RsaCipherProvider cipherProvider,
-							String toEncrypt,
-							EncodingProvider encodingProvider) {
-		this.fingerprintApiWrapper = fingerprintApiWrapper;
-		this.cipherProvider = cipherProvider;
-		this.toEncrypt = toEncrypt;
-		this.encodingProvider = encodingProvider;
-	}
+    @VisibleForTesting
+    RsaEncryptionObservable(FingerprintApiWrapper fingerprintApiWrapper,
+                            RsaCipherProvider cipherProvider,
+                            String toEncrypt,
+                            EncodingProvider encodingProvider) {
+        this.fingerprintApiWrapper = fingerprintApiWrapper;
+        this.cipherProvider = cipherProvider;
+        this.toEncrypt = toEncrypt;
+        this.encodingProvider = encodingProvider;
+    }
 
-	@Override
-	public void subscribe(ObservableEmitter<FingerprintEncryptionResult> emitter) throws Exception {
-		if (fingerprintApiWrapper.isUnavailable()) {
-			emitter.onError(new FingerprintUnavailableException("Fingerprint authentication is not available on this device! Ensure that the device has a Fingerprint sensor and enrolled Fingerprints by calling RxFingerprint#isAvailable(Context) first"));
-			return;
-		}
+    @Override
+    public void subscribe(final ObservableEmitter<FingerprintEncryptionResult> emitter) throws Exception {
+        if (fingerprintApiWrapper.isUnavailable()) {
+            emitter.onError(new FingerprintUnavailableException("Fingerprint authentication is not available on this device! Ensure that the device has a Fingerprint sensor and enrolled Fingerprints by calling RxFingerprint#isAvailable(Context) first"));
+            return;
+        }
 
-		try {
-			Cipher cipher = cipherProvider.getCipherForEncryption();
-			byte[] encryptedBytes = cipher.doFinal(toEncrypt.getBytes("UTF-8"));
+        try {
+            new AsyncTask<Void, Void, Void>() {
 
-			String encryptedString = encodingProvider.encode(encryptedBytes);
-			emitter.onNext(new FingerprintEncryptionResult(FingerprintResult.AUTHENTICATED, null, encryptedString));
-			emitter.onComplete();
-		} catch (Exception e) {
-			Logger.error(String.format("Error writing value for key: %s", cipherProvider.keyName), e);
-			emitter.onError(e);
-		}
-	}
+                @Override
+                protected Void doInBackground(Void... params) {
+
+                    try {
+                        Cipher cipher = cipherProvider.getCipherForEncryption();
+                        byte[] encryptedBytes = cipher.doFinal(toEncrypt.getBytes("UTF-8"));
+
+                        String encryptedString = encodingProvider.encode(encryptedBytes);
+                        emitter.onNext(new FingerprintEncryptionResult(FingerprintResult.AUTHENTICATED, null, encryptedString));
+                        emitter.onComplete();
+                    } catch (Exception e) {
+
+                    }
+                    return null;
+                }
+            }.execute();
+
+
+        } catch (Exception e) {
+            Logger.error(String.format("Error writing value for key: %s", cipherProvider.keyName), e);
+            emitter.onError(e);
+        }
+    }
 }
